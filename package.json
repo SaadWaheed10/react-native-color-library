@@ -1,0 +1,75 @@
+{
+  "name": "react-native-color-library",
+  "version": "1.0.0",
+  "description": "A comprehensive, TypeScript-first color, gradient, and theming library for React Native. Colors, palettes, gradients, contrast utilities, and custom color/palette generation — all StyleSheet-compatible, with zero config.",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "react-native",
+    "colors",
+    "color",
+    "palette",
+    "gradient",
+    "gradients",
+    "theme",
+    "theming",
+    "design-system",
+    "tailwind",
+    "material",
+    "typescript",
+    "stylesheet",
+    "contrast",
+    "accessibility"
+  ],
+  "author": "Saad Waheed Khan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saadwaheed10/react-native-color-library.git"
+  },
+  "homepage": "https://github.com/saadwaheed10/react-native-color-library#readme",
+  "bugs": {
+    "url": "https://github.com/saadwaheed10/react-native-color-library/issues"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.60.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
