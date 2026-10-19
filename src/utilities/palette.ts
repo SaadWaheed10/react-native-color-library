@@ -1,5 +1,5 @@
 import type { ColorShades, ColorValue } from "../types";
-import { mix } from "./colorManipulation";
+import { mix, randomColor } from "./colorManipulation";
 import { createColor } from "./createColor";
 
 const WHITE = "#ffffff";
@@ -55,4 +55,18 @@ export function createPalette(baseColor: ColorValue): ColorShades {
   );
 
   return shades;
+}
+
+/**
+ * Returns a full 50–950 palette built from a random (or hue-locked) base color.
+ *
+ * @example
+ * const palette = randomPalette({ hue: 260 });
+ */
+export function randomPalette(options: {
+  hue?: number;
+  saturation?: number;
+  lightness?: number;
+} = {}): ColorShades {
+  return createPalette(randomColor(options));
 }

@@ -1,7 +1,7 @@
 {
   "name": "react-native-color-library",
   "version": "1.0.0",
-  "description": "A comprehensive, TypeScript-first color, gradient, and theming library for React Native. Colors, palettes, gradients, contrast utilities, and custom color/palette generation — all StyleSheet-compatible, with zero config.",
+  "description": "TypeScript-first color, gradient, and theming library for React Native — ThemeProvider, design tokens, presets, a11y audit, Skia gradients, dynamic color, CLI, and more.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -14,8 +14,14 @@
     "./package.json": "./package.json"
   },
   "sideEffects": false,
+  "bin": {
+    "rn-color": "./cli/rn-color.js"
+  },
   "files": [
-    "dist"
+    "dist",
+    "cli",
+    "example/App.tsx",
+    "example/README.md"
   ],
   "scripts": {
     "build": "tsup",
@@ -41,7 +47,18 @@
     "typescript",
     "stylesheet",
     "contrast",
-    "accessibility"
+    "accessibility",
+    "oklch",
+    "harmony",
+    "colorblind",
+    "charts",
+    "dark-mode",
+    "light-mode",
+    "fonts",
+    "ThemeProvider",
+    "skia",
+    "design-tokens",
+    "cli"
   ],
   "author": "Saad Waheed Khan",
   "license": "MIT",
@@ -54,14 +71,20 @@
     "url": "https://github.com/saadwaheed10/react-native-color-library/issues"
   },
   "peerDependencies": {
+    "react": ">=17.0.0",
     "react-native": ">=0.60.0"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
     "react-native": {
       "optional": false
     }
   },
   "devDependencies": {
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.4.0"

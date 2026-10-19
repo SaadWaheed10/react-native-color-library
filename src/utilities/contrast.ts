@@ -1,8 +1,9 @@
-import type { ColorValue } from "../types";
+import type { ColorValue, ColorShades, ContrastFixOptions, ShadeKey } from "../types";
 import { hexToRgb } from "./colorConversion";
+import { darken, lighten } from "./colorManipulation";
 
-/** Computes relative luminance per WCAG 2.x. */
-function relativeLuminance(color: ColorValue): number {
+/** Computes relative luminance per WCAG 2.x (0 = black, 1 = white). */
+export function getLuminance(color: ColorValue): number {
   const { r, g, b } = hexToRgb(color);
 
   const channel = (value: number): number => {
@@ -10,11 +11,25 @@ function relativeLuminance(color: ColorValue): number {
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   };
 
-  const rl = channel(r);
-  const gl = channel(g);
-  const bl = channel(b);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
 
-  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+/** Returns `true` when the color's relative luminance is ≥ 0.5. */
+export function isLight(color: ColorValue): boolean {
+  return getLuminance(color) >= 0.5;
+}
+
+/** Returns `true` when the color's relative luminance is < 0.5. */
+export function isDark(color: ColorValue): boolean {
+  return getLuminance(color) < 0.5;
+}
+
+function requiredRatio(options: ContrastFixOptions = {}): number {
+  const { level = "AA", largeText = false } = options;
+  if (level === "AAA") {
+    return largeText ? 4.5 : 7;
+  }
+  return largeText ? 3 : 4.5;
 }
 
 /**
@@ -22,8 +37,8 @@ function relativeLuminance(color: ColorValue): number {
  * (no contrast) to 21 (max contrast, black on white).
  */
 export function getContrastRatio(colorA: ColorValue, colorB: ColorValue): number {
-  const lumA = relativeLuminance(colorA);
-  const lumB = relativeLuminance(colorB);
+  const lumA = getLuminance(colorA);
+  const lumB = getLuminance(colorB);
   const lighter = Math.max(lumA, lumB);
   const darker = Math.min(lumA, lumB);
   return (lighter + 0.05) / (darker + 0.05);
@@ -46,13 +61,76 @@ export function getContrastText(backgroundColor: ColorValue): ColorValue {
 export function meetsContrastGuidelines(
   colorA: ColorValue,
   colorB: ColorValue,
-  options: { level?: "AA" | "AAA"; largeText?: boolean } = {}
+  options: ContrastFixOptions = {}
 ): boolean {
-  const { level = "AA", largeText = false } = options;
-  const ratio = getContrastRatio(colorA, colorB);
+  return getContrastRatio(colorA, colorB) >= requiredRatio(options);
+}
 
-  if (level === "AAA") {
-    return ratio >= (largeText ? 4.5 : 7);
+/**
+ * Ensures `foreground` meets WCAG contrast against `background`.
+ * If it already passes, it is returned unchanged; otherwise the color
+ * is lightened/darkened until it passes (or black/white is used as fallback).
+ *
+ * @example
+ * ensureContrast("#e5e7eb", "#9ca3af") // nudges gray until AA
+ */
+export function ensureContrast(
+  background: ColorValue,
+  foreground: ColorValue,
+  options: ContrastFixOptions = {}
+): ColorValue {
+  if (meetsContrastGuidelines(background, foreground, options)) {
+    return foreground;
   }
-  return ratio >= (largeText ? 3 : 4.5);
+
+  const target = requiredRatio(options);
+  const bgLum = getLuminance(background);
+  // Decide whether to push foreground lighter or darker relative to the bg.
+  const shouldLighten = bgLum < 0.5;
+
+  let candidate = foreground;
+  for (let step = 2; step <= 100; step += 2) {
+    candidate = shouldLighten ? lighten(foreground, step) : darken(foreground, step);
+    if (getContrastRatio(background, candidate) >= target) {
+      return candidate;
+    }
+  }
+
+  // Last resort: pure black or white.
+  return getContrastText(background);
+}
+
+const SHADE_ORDER: ShadeKey[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+
+/**
+ * Finds the first shade in a palette that meets WCAG contrast against
+ * `background`. Prefers shades near 500, then walks outward.
+ *
+ * @example
+ * findAccessibleShade(blue, colors.white)
+ */
+export function findAccessibleShade(
+  palette: ColorShades,
+  background: ColorValue,
+  options: ContrastFixOptions = {}
+): ColorValue {
+  // Prefer mid tones first, then walk toward extremes.
+  const preference: ShadeKey[] = [500, 600, 400, 700, 300, 800, 200, 900, 100, 950, 50];
+  for (const key of preference) {
+    if (meetsContrastGuidelines(background, palette[key], options)) {
+      return palette[key];
+    }
+  }
+
+  // Nothing in the palette passes — return the shade with the best ratio.
+  let best = palette[500];
+  let bestRatio = 0;
+  for (const key of SHADE_ORDER) {
+    const ratio = getContrastRatio(background, palette[key]);
+    if (ratio > bestRatio) {
+      bestRatio = ratio;
+      best = palette[key];
+    }
+  }
+  return best;
 }

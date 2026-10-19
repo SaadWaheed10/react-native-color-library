@@ -1,6 +1,16 @@
-import type { SemanticColors, SemanticColorOverrides, ThemePalette } from "../types";
+import type {
+  BrandThemes,
+  ColorValue,
+  SemanticColors,
+  SemanticColorOverrides,
+  ThemePalette,
+} from "../types";
 import { blue, gray, green, amber, red, sky } from "../colors/basic";
 import { white } from "../colors/neutrals";
+import { createPalette } from "../utilities/palette";
+import { createHarmony } from "../utilities/harmony";
+import { hexToHsl, hslToHex } from "../utilities/colorConversion";
+import { ensureContrast } from "../utilities/contrast";
 
 /** Default semantic color tokens, independent of light/dark mode. */
 export const defaultSemanticColors: SemanticColors = {
@@ -75,4 +85,62 @@ export function createThemePalette(
   overrides: Partial<ThemePalette> = {}
 ): ThemePalette {
   return { ...base, ...overrides };
+}
+
+function withLightness(color: ColorValue, lightness: number): ColorValue {
+  const hsl = hexToHsl(color);
+  return hslToHex({ ...hsl, l: Math.min(100, Math.max(0, lightness)) });
+}
+
+/**
+ * Builds paired light + dark theme palettes from a single brand color.
+ * Primary/secondary/success/warning/error/info are derived from the brand
+ * and classic harmonies; surfaces/text follow standard light/dark defaults.
+ *
+ * @example
+ * const themes = createBrandThemes("#7C3AED");
+ * themes.light.primary
+ * themes.dark.background
+ */
+export function createBrandThemes(
+  brandColor: ColorValue,
+  overrides: { light?: Partial<ThemePalette>; dark?: Partial<ThemePalette> } = {}
+): BrandThemes {
+  const palette = createPalette(brandColor);
+  const complementary = createHarmony(brandColor, "complementary");
+  const secondary = complementary[1] ?? sky[500];
+  const analogous = createHarmony(brandColor, "analogous");
+  const infoBase = analogous[2] ?? sky[500];
+
+  const lightTheme: ThemePalette = {
+    background: white,
+    surface: gray[50],
+    text: ensureContrast(white, gray[900]),
+    textMuted: gray[500],
+    border: gray[200],
+    primary: palette[600],
+    secondary,
+    success: green[600],
+    warning: amber[500],
+    error: red[600],
+    info: infoBase,
+    ...overrides.light,
+  };
+
+  const darkTheme: ThemePalette = {
+    background: gray[950],
+    surface: gray[900],
+    text: ensureContrast(gray[950], gray[50]),
+    textMuted: gray[400],
+    border: gray[800],
+    primary: palette[400],
+    secondary: withLightness(secondary, 65),
+    success: green[400],
+    warning: amber[400],
+    error: red[400],
+    info: withLightness(infoBase, 65),
+    ...overrides.dark,
+  };
+
+  return { light: lightTheme, dark: darkTheme };
 }

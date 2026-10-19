@@ -26,10 +26,33 @@ const styles = StyleSheet.create({
 - 🌈 **40+ ready-to-use gradient presets**, grouped by mood (sunset, ocean, neon, pastel, …)
 - 🧪 **`createGradient`** for building your own gradient configs
 - 🖌️ **`createColor`** for normalizing any hex/rgb/rgba input
-- 🎯 **`createPalette`** for generating a full 50–950 scale from one brand color
+- 🎯 **`createPalette`** / **`createPaletteOklch`** for generating a full 50–950 scale
+- 🎭 **`createHarmony`** — complementary, analogous, triadic, tetradic, split-complementary
+- 🌓 **`createBrandThemes`** — full light + dark themes from one brand color
+- 🔘 **Optional `ThemeProvider` + `ThemeToggle`** — one-button light/dark mode with
+  customizable colors **and fonts** that switch with the mode
+- 📐 **Design tokens** — spacing, radius, opacity, z-index, elevation/shadows
+- 🎨 **Theme presets** — `minimal`, `vibrant`, `oled`, `highContrast`, `soft`, `midnight`
+- ♿ **High-contrast & night-shift** modes
+- 💾 **`usePersistedTheme`** — AsyncStorage/MMKV-friendly persistence
+- 🧩 **`ThemedView` / `ThemedText` / `ThemedStatusBar` / `ThemeScope`**
+- ✨ **`AnimatedThemeView`** — smooth fade on mode change
+- 🕐 **`useTimeBasedTheme`** — morning/day/evening/night schemes
+- 🧠 **`createDynamicColorScheme`**, **`auditTheme`**, **`extractPaletteFromPixels`**
+- 🎛️ **HSV picker math** + **Display-P3** helpers
+- 🧊 **Skia gradient configs** (linear / radial / sweep / mesh)
+- 📤 **Style Dictionary / CSS variable export**
+- 🧪 **`ContrastPreview`** in-app a11y panel
+- 🛠️ **CLI** — `npx rn-color init --brand #7C3AED`
 - 🛠️ **Color utilities**: `lighten`, `darken`, `alpha`, `mix`, `invert`, `grayscale`,
-  `saturate`, `desaturate`, plus hex/rgb/hsl conversions
-- ♿ **Contrast utilities**: `getContrastRatio`, `getContrastText`, `meetsContrastGuidelines`
+  `saturate`, `desaturate`, `rotateHue`, `setHue`, `warmer`, `cooler`, `randomColor`,
+  `randomPalette`, plus hex/rgb/hsl/OKLCH conversions
+- ♿ **Contrast & a11y**: `getContrastRatio`, `getContrastText`, `meetsContrastGuidelines`,
+  `ensureContrast`, `findAccessibleShade`, `getLuminance`, `isLight`, `isDark`,
+  `simulateColorBlindness`
+- 🔍 **`nearestColor`** / **`deltaE`** — map any hex to the closest library (or custom) color
+- 📊 **`charts`** — sequential, diverging, and categorical chart palettes
+- 🪟 **`tokens`** / **`overlays`** — scrim, glass, shadow, focus-ring UI tokens
 - 🧩 **Semantic colors & themes**: `colors.semantic`, `colors.light`, `colors.dark`,
   `createTheme`
 - 📦 **Tree-shakable**: `import { blue, red } from "react-native-color-library"`
@@ -233,11 +256,277 @@ import { createThemePalette, dark } from "react-native-color-library";
 const myDarkTheme = createThemePalette(dark, { primary: "#7C3AED" });
 ```
 
+### Brand → light + dark themes
+
+```tsx
+import { createBrandThemes } from "react-native-color-library";
+
+const themes = createBrandThemes("#7C3AED");
+themes.light.primary;
+themes.dark.background;
+```
+
+## One-Toggle Light / Dark Mode (optional)
+
+Static colors still work with zero setup. When you want a live light/dark switch —
+including **fonts and colors that change with the mode** — wrap your app once:
+
+```tsx
+import {
+  ThemeProvider,
+  ThemeToggle,
+  createAppTheme,
+  useTheme,
+  useThemedStyles,
+} from "react-native-color-library";
+import { View, Text } from "react-native";
+
+const appTheme = createAppTheme({
+  brand: "#7C3AED",
+  // Shared fonts (both modes)
+  fonts: {
+    family: { sans: "Inter", mono: "JetBrainsMono" },
+    sizes: { md: 16, xl: 22 },
+  },
+  // Optional per-mode overrides
+  light: {
+    colors: { background: "#ffffff", card: "#f8fafc" },
+  },
+  dark: {
+    colors: { background: "#0a0a0a", card: "#171717" },
+    fonts: { family: { sans: "Inter-Medium" } }, // different font in dark mode
+  },
+});
+
+export function Root() {
+  return (
+    <ThemeProvider theme={appTheme} defaultMode="system">
+      <App />
+    </ThemeProvider>
+  );
+}
+
+function App() {
+  const { colors, fonts, isDark, toggle } = useTheme();
+  const styles = useThemedStyles((t) => ({
+    screen: { flex: 1, backgroundColor: t.colors.background, padding: 24 },
+    title: {
+      color: t.colors.text,
+      fontFamily: t.fonts.family.sans,
+      fontSize: t.fonts.sizes.xl,
+      fontWeight: t.fonts.weights.bold,
+    },
+    subtitle: {
+      color: t.colors.textMuted,
+      fontFamily: t.fonts.family.sans,
+      fontSize: t.fonts.sizes.md,
+    },
+  }));
+
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.title}>Hello {isDark ? "Dark" : "Light"}</Text>
+      <Text style={styles.subtitle}>Colors & fonts follow the mode.</Text>
+
+      {/* Ready-made toggle button */}
+      <ThemeToggle lightLabel="☀️ Dark mode" darkLabel="🌙 Light mode" />
+
+      {/* Or build your own with toggle() */}
+      {/* <Button title="Toggle" onPress={toggle} /> */}
+    </View>
+  );
+}
+```
+
+### Persist the user's choice
+
+```tsx
+<ThemeProvider
+  theme={appTheme}
+  mode={savedMode}                 // "light" | "dark" | "system"
+  onModeChange={async (mode) => {
+    await AsyncStorage.setItem("theme", mode);
+  }}
+>
+  {children}
+</ThemeProvider>
+```
+
+`defaultMode="system"` follows the device; tapping `ThemeToggle` switches to an
+explicit light/dark preference. Colors **and** fonts always come from the active
+mode's half of your `createAppTheme` config.
+
+### Design tokens, presets, persistence, primitives
+
+```tsx
+import {
+  createAppTheme,
+  themePresets,
+  usePersistedTheme,
+  ThemeScope,
+  ThemedView,
+  ThemedText,
+  ThemedStatusBar,
+  AnimatedThemeView,
+  useTimeBasedTheme,
+  ContrastPreview,
+  auditTheme,
+  createDynamicColorScheme,
+  exportStyleDictionaryTokens,
+  createSkiaLinearGradient,
+} from "react-native-color-library";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Full design system from one brand
+const theme = createAppTheme({
+  brand: "#7C3AED",
+  nightShift: true,
+  tokens: { spacing: { md: 20 }, radius: { lg: 16 } },
+});
+
+// Or use a pack
+themePresets.oled;
+themePresets.vibrant;
+
+// Persist mode
+const { mode, setMode, hydrated } = usePersistedTheme({ storage: AsyncStorage });
+
+// Nested brand for one screen
+<ThemeScope theme={{ colors: { primary: "#16a34a" } }}>...</ThemeScope>
+
+// Themed primitives + animated fade
+<AnimatedThemeView style={{ flex: 1 }}>
+  <ThemedView style={{ flex: 1 }}>
+    <ThemedStatusBar />
+    <ThemedText size="xl" weight="bold">Hello</ThemedText>
+    <ContrastPreview />
+  </ThemedView>
+</AnimatedThemeView>
+
+// Time-of-day + Material You–style dynamic color
+useTimeBasedTheme({ base: theme });
+createDynamicColorScheme("#7C3AED");
+auditTheme(theme.light);
+exportStyleDictionaryTokens(theme.light);
+createSkiaLinearGradient({ colors: ["#f00", "#00f"] });
+```
+
+### CLI
+
+```bash
+npx rn-color init --brand #7C3AED
+npx rn-color init --brand #0d9488 --preset soft --out src/theme.ts
+```
+
+See `example/App.tsx` for a full demo screen.
+
+## Color Harmonies
+
+```tsx
+import { createHarmony } from "react-native-color-library";
+
+createHarmony("#7C3AED", "complementary");
+createHarmony("#7C3AED", "analogous");
+createHarmony("#7C3AED", "triadic");
+createHarmony("#7C3AED", "tetradic");
+createHarmony("#7C3AED", "split-complementary");
+```
+
+## OKLCH / OKLab
+
+Perceptually uniform conversions and palette generation:
+
+```tsx
+import {
+  hexToOklch,
+  oklchToHex,
+  lightenOklch,
+  darkenOklch,
+  createPaletteOklch,
+} from "react-native-color-library";
+
+const oklch = hexToOklch("#7C3AED");
+lightenOklch("#7C3AED", 0.1);
+const brand = createPaletteOklch("#7C3AED");
+```
+
+## Accessibility Auto-Fix
+
+```tsx
+import {
+  ensureContrast,
+  findAccessibleShade,
+  getLuminance,
+  isLight,
+  simulateColorBlindness,
+  blue,
+} from "react-native-color-library";
+
+ensureContrast("#ffffff", "#cccccc"); // nudges until WCAG AA
+findAccessibleShade(blue, "#ffffff");
+getLuminance("#3b82f6");
+isLight("#ffffff"); // true
+simulateColorBlindness("#16A34A", "deuteranopia");
+```
+
+## Nearest Color Matching
+
+```tsx
+import { nearestColor, deltaE, createPalette } from "react-native-color-library";
+
+nearestColor("#7B3FE4");
+// → { name: "violet", shade: 500, value: "...", distance: ... }
+
+deltaE("#ff0000", "#00ff00");
+
+const brand = createPalette("#7C3AED");
+nearestColor("#6d28d9", brand); // search within a custom scale
+```
+
+## Extra Manipulation Helpers
+
+```tsx
+import {
+  rotateHue,
+  setHue,
+  warmer,
+  cooler,
+  randomColor,
+  randomPalette,
+} from "react-native-color-library";
+
+rotateHue("#3b82f6", 40);
+setHue("#3b82f6", 200);
+warmer("#3b82f6");
+cooler("#ef4444");
+randomColor({ hue: 260 });
+randomPalette({ hue: 120 });
+```
+
+## Chart Palettes & UI Tokens
+
+```tsx
+import { charts, tokens, overlays, createTokens } from "react-native-color-library";
+
+charts.sequential;
+charts.diverging;
+charts.categorical[5];
+
+tokens.scrim;      // modal backdrop
+tokens.glass;      // frosted surface tint
+tokens.focusRing;
+overlays.darkHeavy;
+
+createTokens({ scrim: "rgba(0, 0, 0, 0.8)" });
+```
+
 ## No Component Lock-In
 
-This library never requires custom components. Keep using `View`, `Text`, `Pressable`,
-`Image`, `ScrollView`, `FlatList`, and `StyleSheet` exactly as you already do — the
-library only supplies color values and utilities.
+Static color/gradient/utility APIs never require custom components. Keep using
+`View`, `Text`, `Pressable`, and `StyleSheet` as you already do.
+
+The optional theming layer (`ThemeProvider`, `ThemeToggle`, `useTheme`) is opt-in —
+use it only when you want a live light/dark toggle with mode-aware colors and fonts.
 
 ## Compatibility
 
